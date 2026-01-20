@@ -1,65 +1,90 @@
-import Image from "next/image";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+import { supabase } from "@/lib/supabase"
+import { ScreenerGrid } from "@/components/ScreenerGrid"
+import { StockCardData } from "@/types"
+
+export const revalidate = 60 // Revalidate every minute
+
+interface AnalysisRow {
+  ticker: string
+  close_price: number
+  change_percent: number
+  volume: number
+  strategy_tags: string[] | null
+  tickers: {
+    name: string
+  } | null
+}
+
+export default async function Home() {
+  // Fetch today's analysis
+  const today = new Date().toISOString().split('T')[0]
+
+  // TODO: In a real app, you might want to handle timezone issues more robustly
+  // For now, we fetch all records for "today" (UTC based on server)
+
+  const { data, error } = await supabase
+    .from('daily_analysis')
+    .select(`
+      *,
+      tickers (
+        name
+      )
+    `)
+    .eq('date', today)
+    .order('change_percent', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching data:', error)
+    return (
+      // TODO: Add i18n with en-US and zh-TW
+      <main className="flex items-center justify-center min-h-screen">
+        <div className="text-red-500">Failed to load data. Please check console.</div>
       </main>
-    </div>
-  );
+    )
+  }
+
+  // Transform to view model
+  // TODO: Refactor this to use a more type-safe approach
+  const items: StockCardData[] = (data as unknown as AnalysisRow[] || []).map((row) => ({
+    symbol: row.ticker,
+    name: row.tickers?.name || 'Unknown',
+    price: row.close_price,
+    change: row.change_percent,
+    volumeStr: formatVolume(row.volume),
+    tags: row.strategy_tags || []
+  }))
+
+  return (
+    <main className="container mx-auto py-8">
+      <header className="mb-8 px-4">
+        <h1 className="text-3xl font-bold tracking-tight">Daily Screener</h1>
+        <p className="text-muted-foreground mt-2">
+          {/* TODO: Check if the crypto data is included in the daily_analysis table, if not, add it by Binance API */}
+          Top performing stocks and crypto from the last session.
+        </p>
+      </header>
+
+      {items.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          No data found for today ({today}). <br />
+          (Hint: Run <code>pnpm exec jiti scripts/seed.ts</code> if in dev)
+        </div>
+      ) : (
+        <ScreenerGrid items={items} />
+      )}
+    </main>
+  )
+}
+
+// TODO: Refactor this to use a more precise method
+// TODO: Move to utils.ts
+function formatVolume(num: number): string {
+  if (num >= 1_000_000) {
+    return (num / 1_000_000).toFixed(1) + 'M'
+  }
+  if (num >= 1_000) {
+    return (num / 1_000).toFixed(1) + 'K'
+  }
+  return num.toString()
 }
