@@ -14,6 +14,7 @@ export function StockCard({ data, onClick }: StockCardProps) {
 
 	return (
 		<Card
+			role="button"
 			className="cursor-pointer hover:bg-accent/50 transition-colors shadow-sm hover:shadow-md"
 			onClick={() => onClick(data.symbol)}
 		>
@@ -25,7 +26,7 @@ export function StockCard({ data, onClick }: StockCardProps) {
 					"text-sm font-bold",
 					isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
 				)}>
-					{isPositive ? "+" : "-"}{data.change.toFixed(2)}%
+					{isPositive ? "+" : ""}{data.change.toFixed(2)}%
 				</span>
 			</CardHeader>
 			<CardContent>
