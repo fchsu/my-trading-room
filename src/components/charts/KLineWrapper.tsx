@@ -17,22 +17,28 @@ export function KLineWrapper({ symbol, initialData }: KLineWrapperProps) {
 	const chartContainerRef = useRef<HTMLDivElement>(null)
 	const chartInstanceRef = useRef<Chart | null>(null)
 
+	// 1. Initialize Chart once
 	useEffect(() => {
 		const container = chartContainerRef.current
 		if (!container) return
 
-		// 1. Initialize Chart
 		chartInstanceRef.current = init(container)
 
-		// 2. Generate Mock Data if none provided (for Demo)
-		const dataList = initialData || generateMockData()
-		chartInstanceRef.current?.applyNewData(dataList)
-
-		// 3. Cleanup
 		return () => {
-			dispose(container)
+			if (container) {
+				dispose(container)
+			}
 		}
-	}, [symbol, initialData])
+	}, []) // Only on mount
+
+	// 2. Update Data when symbol or initialData changes
+	useEffect(() => {
+		if (!chartInstanceRef.current) return
+
+		const dataList = initialData || generateMockData()
+		chartInstanceRef.current.applyNewData(dataList)
+	}, [symbol, initialData]) // Only when data-related props change
+
 
 	return (
 		<div className="w-full h-[400px] bg-background">

@@ -1,0 +1,57 @@
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+
+      - name: Lint Code
+        run: pnpm lint
+
+      - name: Run Tests
+        run: pnpm test:ci --reporter=junit --outputFile=test-report/junit.xml
+
+      - name: Upload Test Coverage
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-coverage-report
+          path: test-report/coverage/
+
+      - name: Test Summary
+        uses: test-summary/action@v2
+        if: always()
+        with:
+          paths: "test-report/junit.xml"
+
+      - name: Build Application
+        run: pnpm build
+
+      - name: Run Lighthouse (Performance Check)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: './lighthouserc.js'
+          uploadArtifacts: true
+
