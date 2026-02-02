@@ -1,8 +1,8 @@
 
 import { render, screen, fireEvent } from '@testing-library/react'
-import { StockCard } from '../StockCard'
+import { StockCard } from '@/components/StockCard'
 import { StockCardData } from '@/types'
-import { vi } from 'vitest'
+import { vi, describe, it, expect } from 'vitest'
 
 const mockStock: StockCardData = {
   symbol: 'TSLA',

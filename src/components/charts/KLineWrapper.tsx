@@ -2,8 +2,9 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { init, dispose, Chart } from 'klinecharts'
-import { KLineData } from '@/types'
+import { init, dispose, Chart, KLineData, LineType } from 'klinecharts'
+import { generateMockKLines } from '@/lib/mockData'
+import { analyzeStock } from '@/lib/strategy/brokenBottom'
 
 interface KLineWrapperProps {
 	symbol: string
@@ -35,8 +36,44 @@ export function KLineWrapper({ symbol, initialData }: KLineWrapperProps) {
 	useEffect(() => {
 		if (!chartInstanceRef.current) return
 
-		const dataList = initialData || generateMockData()
+		const dataList = initialData || generateMockKLines(symbol)
 		chartInstanceRef.current.applyNewData(dataList)
+
+		// 3. Visualize 2B Pattern Logic
+		const result = analyzeStock(symbol, dataList)
+		console.log('DEBUG 2B Result:', result)
+
+
+		if (result.matched && result.debugInfo) {
+			const { pivots, p1_support } = result.debugInfo
+
+			// (B) Draw Support Line (P1)
+			const p1 = pivots[1]
+			// Extend line to the latest candle
+			const endTimestamp = dataList[dataList.length - 1].timestamp
+
+			// Remove previous overlay if exists to force redraw
+			chartInstanceRef.current?.removeOverlay({ id: 'p1_support_line' })
+			chartInstanceRef.current?.removeOverlay({ id: 'p1_support_tag' })
+
+			chartInstanceRef.current?.createOverlay({
+				id: 'p1_support_line',
+				name: 'horizontalStraightLine',
+				lock: true, // Lock to prevent selection state (blue dashed)
+				points: [{ timestamp: p1.timestamp, value: p1_support }],
+				styles: {
+					line: {
+						color: '#FAC858',
+						size: 2,
+						style: LineType.Solid
+					}
+				}
+			})
+
+
+			console.log('Drew P1 Line at', p1_support)
+		}
+
 	}, [symbol, initialData]) // Only when data-related props change
 
 
@@ -48,31 +85,4 @@ export function KLineWrapper({ symbol, initialData }: KLineWrapperProps) {
 			/>
 		</div>
 	)
-}
-
-function generateMockData(): KLineData[] {
-	const data: KLineData[] = []
-	let price = 100
-	const now = Date.now()
-
-	for (let i = 0; i < 100; i++) {
-		const timestamp = now - (100 - i) * 60 * 60 * 1000 * 24 // Daily
-		const open = price
-		const close = price + (Math.random() * 10 - 5)
-		const high = Math.max(open, close) + Math.random() * 5
-		const low = Math.min(open, close) - Math.random() * 5
-		const volume = Math.floor(Math.random() * 10000)
-
-		data.push({
-			timestamp,
-			open,
-			high,
-			low,
-			close,
-			volume
-		})
-
-		price = close
-	}
-	return data
 }
