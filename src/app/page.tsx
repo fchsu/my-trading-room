@@ -54,6 +54,7 @@ export default async function Home() {
     volumeStr: formatVolume(row.volume),
     tags: row.strategy_tags || []
   }))
+    .filter((item) => item.tags.length > 0) // Only show stocks that match a strategy
 
   return (
     <main className="container mx-auto py-8">

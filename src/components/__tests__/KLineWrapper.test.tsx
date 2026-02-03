@@ -1,19 +1,29 @@
 
 import { render } from '@testing-library/react'
-import { KLineWrapper } from '../charts/KLineWrapper'
-import { vi } from 'vitest'
+import { KLineWrapper } from '@/components/charts/KLineWrapper'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import * as klinecharts from 'klinecharts'
 
+const mockCreateOverlay = vi.fn()
+const mockRemoveOverlay = vi.fn()
 const mockApplyNewData = vi.fn()
+
+const mockChartInstance = {
+  applyNewData: mockApplyNewData,
+  resize: vi.fn(),
+  setStyleOptions: vi.fn(),
+  createOverlay: mockCreateOverlay,
+  removeOverlay: mockRemoveOverlay
+}
 
 // Mock the klinecharts module
 vi.mock('klinecharts', () => ({
-  init: vi.fn(() => ({
-    applyNewData: mockApplyNewData,
-    resize: vi.fn(),
-    setStyleOptions: vi.fn(),
-  })),
-  dispose: vi.fn()
+  init: vi.fn(() => mockChartInstance),
+  dispose: vi.fn(),
+  LineType: {
+    Solid: 'solid',
+    Dashed: 'dashed'
+  }
 }))
 
 describe('KLineWrapper Component', () => {
@@ -58,6 +68,26 @@ describe('KLineWrapper Component', () => {
     expect(mockApplyNewData).toHaveBeenCalledWith(data2)
 
     expect(klinecharts.init).toHaveBeenCalledTimes(1) // Still 1
+  })
+
+  it('draws P1 support line when pattern is matched (2330.TW)', () => {
+    // 2330.TW is hardcoded in mockData to match the 2B pattern
+    render(<KLineWrapper symbol="2330.TW" />)
+
+    // Check if createOverlay was called for the support line
+    expect(mockCreateOverlay).toHaveBeenCalled()
+
+    // Verify that createOverlay was called with name 'horizontalStraightLine' and yellow color
+    expect(mockCreateOverlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'horizontalStraightLine',
+        styles: expect.objectContaining({
+          line: expect.objectContaining({
+            color: '#FAC858'
+          })
+        })
+      })
+    )
   })
 
 })
